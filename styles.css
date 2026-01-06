@@ -22,6 +22,9 @@ body{
   padding: 18px 14px 28px;
 }
 
+/* =========================
+   TOP BAR
+========================= */
 .topbar{
   display:flex;
   justify-content:space-between;
@@ -46,8 +49,13 @@ body{
   display:flex;
   gap:10px;
   align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
 }
 
+/* =========================
+   PILLS / BUTTONS
+========================= */
 .pill{
   border-radius:14px;
   padding:10px 12px;
@@ -88,6 +96,31 @@ body{
 #showAllToggle:checked + .toggleTrack::after{ left:20px; }
 .toggleLabel{ color:var(--muted); font-weight:900; }
 
+/* Segmented nav (Tech / Nursing) */
+.seg{
+  display:flex;
+  border:1px solid var(--stroke);
+  border-radius:14px;
+  overflow:hidden;
+  background: rgba(255,255,255,.04);
+}
+.segBtn{
+  padding:10px 12px;
+  font-weight:1000;
+  font-size:13px;
+  color: var(--muted);
+  background: transparent;
+  border:none;
+  cursor:pointer;
+}
+.segBtn.active{
+  background: rgba(255,255,255,.10);
+  color: var(--text);
+}
+
+/* =========================
+   PANELS / LAYOUT
+========================= */
 .panel{
   background: rgba(15,27,32,.55);
   border:1px solid var(--stroke);
@@ -179,6 +212,9 @@ body{
   font-size:12px;
 }
 
+/* =========================
+   CART LIST / CARDS
+========================= */
 .cartList{
   display:flex;
   flex-direction:column;
@@ -223,6 +259,9 @@ body{
   cursor:pointer;
 }
 
+/* =========================
+   STICKERS
+========================= */
 .sticker{
   border-radius:18px;
   padding:16px 16px 14px;
@@ -298,10 +337,7 @@ body{
 .issueToggle input{ transform: scale(1.2); }
 .issueHint{ font-weight:900; opacity:.75; font-size:12px; }
 
-.hidden{ display:none; }
-.issueNoteRow{
-  margin-top:10px;
-}
+.issueNoteRow{ margin-top:10px; }
 .issueNoteInput{
   width:100%;
   border-radius:12px;
@@ -342,6 +378,9 @@ body{
   border-color: rgba(0,0,0,.35);
 }
 
+/* =========================
+   NURSING SUMMARY TABLE (Tech Summary)
+========================= */
 .nurseControls{ display:flex; flex-direction:column; gap:10px; }
 .nurseRow{
   display:flex;
@@ -388,13 +427,68 @@ body{
   background: rgba(255,255,255,.04);
 }
 
-/* PRINT MODE */
+/* =========================
+   NURSING PAPER TABLE (Separate screen)
+========================= */
+.paperTable{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  overflow:hidden;
+  border-radius:14px;
+  border:1px solid var(--stroke);
+}
+.paperTable th, .paperTable td{
+  text-align:center;
+  padding:8px 6px;
+  font-size:12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.paperTable th{
+  background: rgba(255,255,255,.06);
+  color: var(--muted);
+  font-weight:1000;
+}
+.paperTable td:first-child, .paperTable th:first-child{
+  text-align:left;
+  padding-left:10px;
+}
+.paperChk{
+  transform: scale(1.2);
+}
+.paperInput{
+  width:100%;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+  padding:6px 8px;
+  font-weight:900;
+  outline:none;
+  font-size:12px;
+}
+
+/* =========================
+   GLOBAL
+========================= */
+.hidden{ display:none; }
+
+#nursingLogPrintArea{ display:none; }
+#nursePrintArea{ display:none; }
+
 @media print {
   body { background:#fff !important; color:#000 !important; }
-  .topbar, .noPrint, #cartList, .panel:not(#nursingPanel) { display:none !important; }
-  #nursingLogPrintArea { display:block !important; }
-  #nursingPanel { border:none !important; background: transparent !important; }
 
+  /* default print hides interactive chrome */
+  .topbar, .noPrint { display:none !important; }
+
+  /* Tech print (summary) */
+  #nursingLogPrintArea { display:block !important; }
+
+  /* Nursing print (paper table) */
+  #nursePrintArea { display:block !important; }
+
+  /* Keep tables readable */
   table { width: 100%; border-collapse: collapse; font-size: 11pt; }
   th, td { border: 1px solid #000; padding: 6px 8px; }
   th { background: #f2f2f2; font-weight: 800; }
@@ -402,4 +496,3 @@ body{
   tr { page-break-inside: avoid; }
   .statusPill { border: 1px solid #000; background: transparent !important; color:#000 !important; }
 }
-#nursingLogPrintArea{ display:none; }
