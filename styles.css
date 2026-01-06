@@ -60,7 +60,6 @@ body{
   align-items:center;
   gap:8px;
 }
-.pill--dark{ background: rgba(0,0,0,.22); }
 .pill--outline{ background: transparent; }
 
 .pill--toggle{
@@ -388,50 +387,6 @@ body{
   border:1px solid var(--stroke);
   background: rgba(255,255,255,.04);
 }
-
-/* Modal */
-.modal{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  display:grid;
-  place-items:center;
-  padding: 16px;
-}
-.modalCard{
-  width:min(420px, 100%);
-  background: #0f171b;
-  border:1px solid var(--stroke);
-  border-radius:18px;
-  padding:16px;
-}
-.modalTitle{ font-weight:1000; font-size:18px; margin-bottom:10px; }
-.pinInput{
-  width:100%;
-  padding:12px 12px;
-  border-radius:12px;
-  border:1px solid var(--stroke);
-  background: rgba(255,255,255,.04);
-  color: var(--text);
-  font-size:18px;
-  font-weight:900;
-  letter-spacing:6px;
-}
-.modalActions{
-  display:flex;
-  justify-content:flex-end;
-  gap:10px;
-  margin-top:12px;
-}
-.btn{
-  border-radius:12px;
-  padding:10px 12px;
-  border:1px solid var(--stroke);
-  font-weight:900;
-}
-.btn--ghost{ background: transparent; color: var(--text); }
-.btn--primary{ background: rgba(255,255,255,.10); color: var(--text); }
-.modalHint{ margin-top:10px; color: var(--muted); font-size:12px; }
 
 /* PRINT MODE */
 @media print {
