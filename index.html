@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Verifi Pilot — Crash Carts</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <header class="topbar">
+      <div class="topbar__title">
+        <div class="h1">Verifi Pilot<br/>Crash Carts</div>
+        <div class="sub">Sticker entry → Nursing log → Print/PDF</div>
+      </div>
+
+      <div class="topbar__actions">
+        <button id="lockBtn" class="pill pill--dark"><span class="icon">🔒</span> Lock</button>
+
+        <label class="pill pill--toggle noPrint">
+          <input id="readyToggle" type="checkbox" />
+          <span class="toggleTrack"></span>
+          <span class="toggleLabel">Ready</span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Round Controls -->
+    <section class="panel">
+      <div class="panelRow">
+        <div class="panelTitle">Round Setup</div>
+        <div class="panelSub" id="roundMeta">No carts added</div>
+      </div>
+
+      <div class="controlGrid">
+        <div>
+          <div class="fieldLabel">Cart Type</div>
+          <div class="tabs" id="cartTypeTabs">
+            <button class="tab active" data-type="Adult – Towers">Adult – Towers</button>
+            <button class="tab" data-type="Adult – ER / Procedural">Adult – ER / Procedural</button>
+            <button class="tab" data-type="Neonatal">Neonatal</button>
+            <button class="tab" data-type="Broselow">Broselow</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="fieldLabel">Department / Area</div>
+          <select id="departmentSelect" class="select">
+            <!-- options injected by JS -->
+          </select>
+        </div>
+      </div>
+
+      <div class="addCartRow">
+        <input id="cartNumberInput" class="cartInput" placeholder="Enter Cart # (manual)" inputmode="numeric" />
+        <button id="addCartBtn" class="pill pill--outline">Add Cart</button>
+      </div>
+
+      <div class="toolbarRow">
+        <button id="clearRoundBtn" class="pill pill--outline">Clear Round</button>
+        <button id="saveRoundBtn" class="pill pill--outline">Save Round</button>
+        <button id="exportJsonBtn" class="pill pill--outline">Export JSON</button>
+      </div>
+
+      <div class="miniHint">
+        Tip: Add carts as you walk. Every cart keeps the same sticker fields. Issues stay included & flagged.
+      </div>
+    </section>
+
+    <!-- Cart Cards -->
+    <section id="cartList" class="cartList"></section>
+
+    <!-- Nursing Log -->
+    <section class="panel" id="nursingPanel">
+      <div class="panelRow" style="margin-bottom:10px;">
+        <div class="panelTitle">Nursing Log</div>
+        <div class="panelSub" id="nursingMeta">Needs attention only</div>
+      </div>
+
+      <div class="nurseControls">
+        <div class="nurseRow">
+          <label class="pill pill--toggle noPrint" style="gap:8px;">
+            <input id="showAllToggle" type="checkbox" />
+            <span class="toggleTrack"></span>
+            <span class="toggleLabel">Show All</span>
+          </label>
+
+          <button id="printPdfBtn" class="pill pill--outline noPrint">Print / Save PDF</button>
+        </div>
+      </div>
+
+      <div id="nursingLogContainer"></div>
+
+      <!-- PRINT AREA -->
+      <section id="nursingLogPrintArea">
+        <div style="margin: 0 0 10px 0;">
+          <div style="font-weight:900; font-size:16px;">Verifi — Nursing Log</div>
+          <div style="font-size:12px;">
+            Cart Type: <span id="printCartType"></span> • Generated: <span id="printGeneratedAt"></span>
+          </div>
+        </div>
+        <div id="nursingLogPrintContainer"></div>
+      </section>
+    </section>
+
+  </div>
+
+  <!-- PIN Modal -->
+  <div class="modal hidden" id="pinModal">
+    <div class="modalCard">
+      <div class="modalTitle">Enter PIN</div>
+      <input id="pinInput" class="pinInput" inputmode="numeric" placeholder="••••" maxlength="6" />
+      <div class="modalActions">
+        <button id="pinCancel" class="btn btn--ghost">Cancel</button>
+        <button id="pinUnlock" class="btn btn--primary">Unlock</button>
+      </div>
+      <div class="modalHint">Pilot default PIN is set in app.js</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
