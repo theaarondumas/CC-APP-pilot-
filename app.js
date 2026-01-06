@@ -1,5 +1,5 @@
 /* ===========================
-   Verifi Pilot — Feature Complete (Local Save)
+   Verifi Pilot — Feature Complete (NO LOCK)
    - Cart Types + filtered departments
    - Manual Cart # batch round
    - Sticker entry per cart
@@ -14,17 +14,9 @@
    =========================== */
 
 const $ = (id) => document.getElementById(id);
-
 const LOCAL_KEY = "verifi_pilot_round_v1";
-const DEMO_PIN = "1234"; // pilot lock/unlock
 
 // UI
-const lockBtn = $("lockBtn");
-const pinModal = $("pinModal");
-const pinInput = $("pinInput");
-const pinCancel = $("pinCancel");
-const pinUnlock = $("pinUnlock");
-
 const cartTypeTabs = $("cartTypeTabs");
 const departmentSelect = $("departmentSelect");
 const cartNumberInput = $("cartNumberInput");
@@ -43,16 +35,15 @@ const showAllToggle = $("showAllToggle");
 const printPdfBtn = $("printPdfBtn");
 
 // State
-let isLocked = false;
 let showAll = false;
 
 let round = {
   cartType: "Adult – Towers",
   department: "",
-  carts: [] // array of cart objects
+  carts: []
 };
 
-// Department lists based on your paper sheets (pilot-safe)
+// Department lists (from your paper sheets)
 const DEPARTMENTS = {
   "Adult – Towers": [
     "4 South","4 East","3 South","3 East","2 South","2 East",
@@ -93,7 +84,7 @@ function newCart(cartNo) {
     checkDate: "",   // YYYY-MM-DD
     checkedBy: "",
 
-    // Shift toggle (Day/Evening/Night)
+    // Shift toggle
     shift: "",
 
     // Issue
@@ -101,55 +92,10 @@ function newCart(cartNo) {
     issueNote: "",
 
     // Drug sticker
-    drugExp: "",     // YYYY-MM-DD
+    drugExp: "",
     drugName: ""
   };
 }
-
-/* ---------------------------
-   Lock / Unlock
---------------------------- */
-function setLocked(state) {
-  isLocked = state;
-
-  document.querySelectorAll("input, select, button").forEach((el) => {
-    // keep unlock controls clickable
-    const id = el.id || "";
-    if (id === "lockBtn" || id === "pinUnlock" || id === "pinCancel" || id === "pinInput") return;
-
-    // printing button should still work even if locked (optional)
-    if (id === "printPdfBtn") return;
-
-    // allow lock button always
-    if (el.closest("#pinModal")) return;
-
-    el.disabled = state;
-  });
-
-  lockBtn.textContent = state ? "🔒 Locked" : "🔒 Lock";
-}
-
-lockBtn.addEventListener("click", () => {
-  if (!isLocked) return setLocked(true);
-
-  pinModal.classList.remove("hidden");
-  pinInput.value = "";
-  pinInput.placeholder = "••••";
-  pinInput.focus();
-});
-
-pinCancel.addEventListener("click", () => pinModal.classList.add("hidden"));
-
-pinUnlock.addEventListener("click", () => {
-  if (pinInput.value.trim() === DEMO_PIN) {
-    setLocked(false);
-    pinModal.classList.add("hidden");
-  } else {
-    pinInput.value = "";
-    pinInput.placeholder = "Wrong PIN";
-    pinInput.focus();
-  }
-});
 
 /* ---------------------------
    Department options
@@ -158,7 +104,6 @@ function renderDepartmentOptions() {
   const opts = DEPARTMENTS[round.cartType] || [];
   departmentSelect.innerHTML = opts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
 
-  // preserve if still valid, else pick first
   if (!opts.includes(round.department)) {
     round.department = opts[0] || "";
   }
@@ -183,29 +128,34 @@ function addCart(cartNo) {
   const cleaned = String(cartNo).trim();
   if (!cleaned) return;
 
-  // duplicates within same round
-  if (round.carts.some(c => c.cartNo === cleaned && c.department === round.department && c.cartType === round.cartType)) {
+  const dup = round.carts.some(c =>
+    c.cartNo === cleaned &&
+    c.department === round.department &&
+    c.cartType === round.cartType
+  );
+  if (dup) {
     cartNumberInput.value = "";
     cartNumberInput.placeholder = "Already added";
     return;
   }
 
-  const cart = newCart(cleaned);
-  round.carts.push(cart);
+  round.carts.push(newCart(cleaned));
 
   cartNumberInput.value = "";
   cartNumberInput.placeholder = "Enter Cart # (manual)";
 
+  saveToLocal();
   renderAll();
 }
 
 function removeCart(index) {
   round.carts.splice(index, 1);
+  saveToLocal();
   renderAll();
 }
 
 /* ---------------------------
-   Shift Toggle wiring
+   Shift toggle wiring
 --------------------------- */
 function wireShiftButtons(cart, cardEl) {
   const buttons = cardEl.querySelectorAll(".shiftBtn");
@@ -217,7 +167,7 @@ function wireShiftButtons(cart, cardEl) {
       buttons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
 
-      saveToLocal(); // small autosave
+      saveToLocal();
       renderNursingLog();
     });
   });
@@ -230,7 +180,7 @@ function wireShiftButtons(cart, cardEl) {
 }
 
 /* ---------------------------
-   Issue Note show/hide
+   Issue note show/hide
 --------------------------- */
 function syncIssueUI(cart, cardEl) {
   const issueCheckbox = cardEl.querySelector(".issueCheckbox");
@@ -239,15 +189,16 @@ function syncIssueUI(cart, cardEl) {
 
   const apply = () => {
     cart.issue = issueCheckbox.checked;
+
     if (cart.issue) {
       noteRow.classList.remove("hidden");
+      cardEl.style.outline = "4px solid rgba(244,162,27,.55)";
     } else {
       noteRow.classList.add("hidden");
       cart.issueNote = "";
       noteInput.value = "";
+      cardEl.style.outline = "none";
     }
-    // highlight card outline
-    cardEl.style.outline = cart.issue ? "4px solid rgba(244,162,27,.55)" : "none";
 
     saveToLocal();
     renderNursingLog();
@@ -358,18 +309,12 @@ function cartCardHTML(cart, index) {
 function renderCartCards() {
   cartList.innerHTML = round.carts.map((c, i) => cartCardHTML(c, i)).join("");
 
-  // Wire card events
-  const cards = cartList.querySelectorAll(".cartCard");
-  cards.forEach((cardEl) => {
+  cartList.querySelectorAll(".cartCard").forEach((cardEl) => {
     const idx = Number(cardEl.getAttribute("data-index"));
     const cart = round.carts[idx];
 
-    // remove
-    cardEl.querySelector(".removeBtn")?.addEventListener("click", () => {
-      removeCart(idx);
-    });
+    cardEl.querySelector(".removeBtn")?.addEventListener("click", () => removeCart(idx));
 
-    // inputs
     const supplyName = cardEl.querySelector(".supplyName");
     const supplyExp = cardEl.querySelector(".supplyExp");
     const checkDate = cardEl.querySelector(".checkDate");
@@ -385,14 +330,9 @@ function renderCartCards() {
     drugExp.addEventListener("change", () => { cart.drugExp = drugExp.value; saveToLocal(); renderNursingLog(); });
     drugName.addEventListener("input", () => { cart.drugName = drugName.value; saveToLocal(); renderNursingLog(); });
 
-    // shift
     wireShiftButtons(cart, cardEl);
-
-    // issue + note
     syncIssueUI(cart, cardEl);
   });
-
-  setLocked(isLocked);
 }
 
 /* ---------------------------
@@ -419,7 +359,7 @@ function earliestDate(d1, d2) {
   return d1 <= d2 ? d1 : d2;
 }
 
-// Blank expiration => Due Soon (LOCKED)
+// Blank expiration => Due Soon (locked)
 function computeExpiryStatus(cart) {
   const today = startOfToday();
   const s = parseISODate(cart.supplyExp);
@@ -488,7 +428,6 @@ function renderNursingTable(targetEl, rows) {
       `;
     }).join("");
 
-    // Only show group header if group has rows (it does)
     return `
       <div class="groupHeader">${escapeHtml(dept)}</div>
       <table class="nurseTable">
@@ -510,14 +449,9 @@ function renderNursingTable(targetEl, rows) {
 }
 
 function renderNursingLog() {
-  if (!nursingLogContainer) return;
-
-  // only show carts for selected cart type (round.cartType)
   const filtered = round.carts.filter(c => c.cartType === round.cartType);
-
   const rows = showAll ? filtered : filtered.filter(needsAttention);
   nursingMeta.textContent = showAll ? "Showing all carts" : "Needs attention only";
-
   renderNursingTable(nursingLogContainer, rows);
 }
 
@@ -534,9 +468,7 @@ function renderNursingLogForPrint() {
    Local save / load
 --------------------------- */
 function saveToLocal() {
-  try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(round));
-  } catch {}
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(round)); } catch {}
 }
 
 function loadFromLocal() {
@@ -544,10 +476,7 @@ function loadFromLocal() {
     const raw = localStorage.getItem(LOCAL_KEY);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
-
-    // basic shape validation
     if (!parsed || !parsed.cartType || !Array.isArray(parsed.carts)) return false;
-
     round = parsed;
     return true;
   } catch {
@@ -556,7 +485,7 @@ function loadFromLocal() {
 }
 
 /* ---------------------------
-   Export JSON (pilot review)
+   Export JSON
 --------------------------- */
 function downloadJSON(data, filename = "verifi_pilot_export.json") {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -599,13 +528,11 @@ cartTypeTabs.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-type]");
   if (!btn) return;
 
-  const newType = btn.getAttribute("data-type");
-  round.cartType = newType;
+  round.cartType = btn.getAttribute("data-type");
 
   document.querySelectorAll("#cartTypeTabs .tab").forEach(t => t.classList.remove("active"));
   btn.classList.add("active");
 
-  // update department list and keep carts' type stable (existing carts retain their cartType)
   renderDepartmentOptions();
   saveToLocal();
   renderAll();
@@ -613,8 +540,6 @@ cartTypeTabs.addEventListener("click", (e) => {
 
 departmentSelect.addEventListener("change", () => {
   round.department = departmentSelect.value;
-
-  // NOTE: carts already added keep the department they were created with (like paper)
   saveToLocal();
   renderAll();
 });
@@ -654,19 +579,15 @@ printPdfBtn.addEventListener("click", () => {
    Init
 --------------------------- */
 (function init() {
-  // load saved state if present
   loadFromLocal();
 
-  // ensure department exists
   renderDepartmentOptions();
   if (!round.department) round.department = (DEPARTMENTS[round.cartType] || [])[0] || "";
 
-  // set active tab
   document.querySelectorAll("#cartTypeTabs .tab").forEach(t => t.classList.remove("active"));
   document.querySelector(`#cartTypeTabs .tab[data-type="${CSS.escape(round.cartType)}"]`)?.classList.add("active");
 
   departmentSelect.value = round.department;
 
   renderAll();
-  setLocked(false);
 })();
