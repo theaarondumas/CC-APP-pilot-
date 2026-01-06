@@ -1,22 +1,41 @@
 /* ===========================
    Verifi Pilot — Feature Complete (NO LOCK)
-   - Cart Types + filtered departments
-   - Manual Cart # batch round
-   - Sticker entry per cart
-   - All dates = calendar picker
-   - Drug name free text
-   - Issue stays included + optional Issue Note
-   - Shift 3-button toggle
-   - Nursing Log: Needs attention default (A) + Show All
-   - Due Soon logic (30d) + blanks => Due Soon
-   - Print / Save PDF
-   - LocalStorage persistence + JSON export
+   + Separate Nursing Screen (paper-style monthly log)
    =========================== */
 
 const $ = (id) => document.getElementById(id);
-const LOCAL_KEY = "verifi_pilot_round_v1";
 
-// UI
+const LOCAL_KEY_TECH = "verifi_pilot_round_v1";
+const LOCAL_KEY_NURSE = "verifi_pilot_nurse_log_v1";
+
+/* ---------------------------
+   NAV (Tech / Nursing screens)
+--------------------------- */
+const techView = $("techView");
+const nursingView = $("nursingView");
+const navTech = $("navTech");
+const navNursing = $("navNursing");
+
+function showScreen(screen) {
+  if (screen === "nursing") {
+    techView.classList.add("hidden");
+    nursingView.classList.remove("hidden");
+    navTech.classList.remove("active");
+    navNursing.classList.add("active");
+  } else {
+    nursingView.classList.add("hidden");
+    techView.classList.remove("hidden");
+    navNursing.classList.remove("active");
+    navTech.classList.add("active");
+  }
+}
+
+navTech.addEventListener("click", () => showScreen("tech"));
+navNursing.addEventListener("click", () => showScreen("nursing"));
+
+/* ===========================
+   TECH MODULE (stickers)
+=========================== */
 const cartTypeTabs = $("cartTypeTabs");
 const departmentSelect = $("departmentSelect");
 const cartNumberInput = $("cartNumberInput");
@@ -34,7 +53,6 @@ const nursingLogPrintContainer = $("nursingLogPrintContainer");
 const showAllToggle = $("showAllToggle");
 const printPdfBtn = $("printPdfBtn");
 
-// State
 let showAll = false;
 
 let round = {
@@ -80,8 +98,8 @@ function newCart(cartNo) {
 
     // Supply sticker
     supplyName: "",
-    supplyExp: "",   // YYYY-MM-DD
-    checkDate: "",   // YYYY-MM-DD
+    supplyExp: "",
+    checkDate: "",
     checkedBy: "",
 
     // Shift toggle
@@ -97,9 +115,6 @@ function newCart(cartNo) {
   };
 }
 
-/* ---------------------------
-   Department options
---------------------------- */
 function renderDepartmentOptions() {
   const opts = DEPARTMENTS[round.cartType] || [];
   departmentSelect.innerHTML = opts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("");
@@ -110,20 +125,12 @@ function renderDepartmentOptions() {
   departmentSelect.value = round.department;
 }
 
-/* ---------------------------
-   Round meta
---------------------------- */
 function renderRoundMeta() {
   const c = round.carts.length;
   roundMeta.textContent =
-    c === 0
-      ? "No carts added"
-      : `${round.cartType} • ${round.department} • ${c} cart${c > 1 ? "s" : ""}`;
+    c === 0 ? "No carts added" : `${round.cartType} • ${round.department} • ${c} cart${c > 1 ? "s" : ""}`;
 }
 
-/* ---------------------------
-   Add/Remove carts
---------------------------- */
 function addCart(cartNo) {
   const cleaned = String(cartNo).trim();
   if (!cleaned) return;
@@ -140,35 +147,29 @@ function addCart(cartNo) {
   }
 
   round.carts.push(newCart(cleaned));
-
   cartNumberInput.value = "";
   cartNumberInput.placeholder = "Enter Cart # (manual)";
 
-  saveToLocal();
-  renderAll();
+  saveTechToLocal();
+  renderTechAll();
 }
 
 function removeCart(index) {
   round.carts.splice(index, 1);
-  saveToLocal();
-  renderAll();
+  saveTechToLocal();
+  renderTechAll();
 }
 
-/* ---------------------------
-   Shift toggle wiring
---------------------------- */
 function wireShiftButtons(cart, cardEl) {
   const buttons = cardEl.querySelectorAll(".shiftBtn");
   buttons.forEach(btn => {
     btn.addEventListener("click", () => {
       const selected = btn.getAttribute("data-shift");
       cart.shift = selected;
-
       buttons.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-
-      saveToLocal();
-      renderNursingLog();
+      saveTechToLocal();
+      renderTechNursingLog();
     });
   });
 
@@ -179,9 +180,6 @@ function wireShiftButtons(cart, cardEl) {
   }
 }
 
-/* ---------------------------
-   Issue note show/hide
---------------------------- */
 function syncIssueUI(cart, cardEl) {
   const issueCheckbox = cardEl.querySelector(".issueCheckbox");
   const noteRow = cardEl.querySelector(".issueNoteRow");
@@ -200,26 +198,22 @@ function syncIssueUI(cart, cardEl) {
       cardEl.style.outline = "none";
     }
 
-    saveToLocal();
-    renderNursingLog();
+    saveTechToLocal();
+    renderTechNursingLog();
   };
 
   issueCheckbox.addEventListener("change", apply);
   noteInput.addEventListener("input", () => {
     cart.issueNote = noteInput.value;
-    saveToLocal();
-    renderNursingLog();
+    saveTechToLocal();
+    renderTechNursingLog();
   });
 
-  // initial state
   issueCheckbox.checked = !!cart.issue;
   noteInput.value = cart.issueNote || "";
   apply();
 }
 
-/* ---------------------------
-   Render cart cards
---------------------------- */
 function cartCardHTML(cart, index) {
   return `
     <div class="cartCard" data-index="${index}">
@@ -229,7 +223,7 @@ function cartCardHTML(cart, index) {
           <div class="cartSub">${escapeHtml(cart.cartType)} • ${escapeHtml(cart.department)}</div>
         </div>
         <div class="cartActions noPrint">
-          <button class="iconBtn removeBtn" title="Remove">✕</button>
+          <button class="iconBtn removeBtn" type="button" title="Remove">✕</button>
         </div>
       </div>
 
@@ -293,13 +287,9 @@ function cartCardHTML(cart, index) {
 
         <div class="formRow">
           <div class="label">Name of Drug:</div>
-          <input class="underline drugName"
-                 placeholder="—"
-                 type="text"
-                 autocomplete="off"
-                 autocapitalize="words"
-                 spellcheck="false"
-                 value="${escapeHtml(cart.drugName)}" />
+          <input class="underline drugName" placeholder="—" type="text"
+            autocomplete="off" autocapitalize="words" spellcheck="false"
+            value="${escapeHtml(cart.drugName)}" />
         </div>
       </section>
     </div>
@@ -322,22 +312,20 @@ function renderCartCards() {
     const drugExp = cardEl.querySelector(".drugExp");
     const drugName = cardEl.querySelector(".drugName");
 
-    supplyName.addEventListener("input", () => { cart.supplyName = supplyName.value; saveToLocal(); renderNursingLog(); });
-    supplyExp.addEventListener("change", () => { cart.supplyExp = supplyExp.value; saveToLocal(); renderNursingLog(); });
-    checkDate.addEventListener("change", () => { cart.checkDate = checkDate.value; saveToLocal(); renderNursingLog(); });
-    checkedBy.addEventListener("input", () => { cart.checkedBy = checkedBy.value; saveToLocal(); renderNursingLog(); });
+    supplyName.addEventListener("input", () => { cart.supplyName = supplyName.value; saveTechToLocal(); renderTechNursingLog(); });
+    supplyExp.addEventListener("change", () => { cart.supplyExp = supplyExp.value; saveTechToLocal(); renderTechNursingLog(); });
+    checkDate.addEventListener("change", () => { cart.checkDate = checkDate.value; saveTechToLocal(); renderTechNursingLog(); });
+    checkedBy.addEventListener("input", () => { cart.checkedBy = checkedBy.value; saveTechToLocal(); renderTechNursingLog(); });
 
-    drugExp.addEventListener("change", () => { cart.drugExp = drugExp.value; saveToLocal(); renderNursingLog(); });
-    drugName.addEventListener("input", () => { cart.drugName = drugName.value; saveToLocal(); renderNursingLog(); });
+    drugExp.addEventListener("change", () => { cart.drugExp = drugExp.value; saveTechToLocal(); renderTechNursingLog(); });
+    drugName.addEventListener("input", () => { cart.drugName = drugName.value; saveTechToLocal(); renderTechNursingLog(); });
 
     wireShiftButtons(cart, cardEl);
     syncIssueUI(cart, cardEl);
   });
 }
 
-/* ---------------------------
-   Due Soon / Overdue logic
---------------------------- */
+/* ---- Tech due soon logic ---- */
 const DUE_SOON_DAYS = 30;
 
 function parseISODate(iso) {
@@ -359,7 +347,7 @@ function earliestDate(d1, d2) {
   return d1 <= d2 ? d1 : d2;
 }
 
-// Blank expiration => Due Soon (locked)
+// Blank expiration => Due Soon
 function computeExpiryStatus(cart) {
   const today = startOfToday();
   const s = parseISODate(cart.supplyExp);
@@ -373,20 +361,15 @@ function computeExpiryStatus(cart) {
   if (daysLeft <= DUE_SOON_DAYS) return { level: "dueSoon", pill: "⏰ Due Soon" };
   return { level: "ok", pill: "✅ OK" };
 }
-
 function computeNursingPill(cart) {
   const expiry = computeExpiryStatus(cart);
   if (cart.issue) return { level: "issue", pill: "⚠️ Issue" };
   return expiry;
 }
-
 function needsAttention(cart) {
   return computeNursingPill(cart).level !== "ok";
 }
 
-/* ---------------------------
-   Nursing Log render
---------------------------- */
 function groupByDepartment(rows) {
   const map = new Map();
   rows.forEach(r => {
@@ -440,53 +423,41 @@ function renderNursingTable(targetEl, rows) {
             <th>Status</th>
           </tr>
         </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
+        <tbody>${tableRows}</tbody>
       </table>
     `;
   }).join("");
 }
 
-function renderNursingLog() {
+function renderTechNursingLog() {
   const filtered = round.carts.filter(c => c.cartType === round.cartType);
   const rows = showAll ? filtered : filtered.filter(needsAttention);
   nursingMeta.textContent = showAll ? "Showing all carts" : "Needs attention only";
   renderNursingTable(nursingLogContainer, rows);
 }
 
-function renderNursingLogForPrint() {
+function renderTechNursingLogForPrint() {
   $("printCartType").textContent = round.cartType;
   $("printGeneratedAt").textContent = new Date().toLocaleString();
-
   const filtered = round.carts.filter(c => c.cartType === round.cartType);
   const rows = showAll ? filtered : filtered.filter(needsAttention);
   renderNursingTable(nursingLogPrintContainer, rows);
 }
 
-/* ---------------------------
-   Local save / load
---------------------------- */
-function saveToLocal() {
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(round)); } catch {}
+/* ---- Tech local save/load ---- */
+function saveTechToLocal() {
+  try { localStorage.setItem(LOCAL_KEY_TECH, JSON.stringify(round)); } catch {}
 }
-
-function loadFromLocal() {
+function loadTechFromLocal() {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = localStorage.getItem(LOCAL_KEY_TECH);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     if (!parsed || !parsed.cartType || !Array.isArray(parsed.carts)) return false;
     round = parsed;
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
-
-/* ---------------------------
-   Export JSON
---------------------------- */
 function downloadJSON(data, filename = "verifi_pilot_export.json") {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -498,6 +469,227 @@ function downloadJSON(data, filename = "verifi_pilot_export.json") {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/* ---- Tech render ---- */
+function renderTechAll() {
+  renderDepartmentOptions();
+  renderRoundMeta();
+  renderCartCards();
+  renderTechNursingLog();
+}
+
+/* ---- Tech event wiring ---- */
+cartTypeTabs.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-type]");
+  if (!btn) return;
+
+  round.cartType = btn.getAttribute("data-type");
+
+  document.querySelectorAll("#cartTypeTabs .tab").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
+
+  renderDepartmentOptions();
+  saveTechToLocal();
+  renderTechAll();
+});
+
+departmentSelect.addEventListener("change", () => {
+  round.department = departmentSelect.value;
+  saveTechToLocal();
+  renderTechAll();
+});
+
+addCartBtn.addEventListener("click", () => addCart(cartNumberInput.value));
+cartNumberInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addCart(cartNumberInput.value);
+});
+
+clearRoundBtn.addEventListener("click", () => {
+  if (!confirm("Clear this round (remove all carts from screen)?")) return;
+  round.carts = [];
+  saveTechToLocal();
+  renderTechAll();
+});
+
+saveRoundBtn.addEventListener("click", () => {
+  saveTechToLocal();
+  alert("Tech round saved on this device.");
+});
+
+exportJsonBtn.addEventListener("click", () => {
+  downloadJSON(round, `verifi_${round.cartType.replaceAll(" ", "_")}_export.json`);
+});
+
+showAllToggle.addEventListener("change", () => {
+  showAll = showAllToggle.checked;
+  renderTechNursingLog();
+});
+
+printPdfBtn.addEventListener("click", () => {
+  renderTechNursingLogForPrint();
+  window.print();
+});
+
+/* ===========================
+   NURSING MODULE (paper-style)
+=========================== */
+const nurseUnitName = $("nurseUnitName");
+const nurseMonth = $("nurseMonth");
+const nurseAddRowBtn = $("nurseAddRowBtn");
+const nurseSaveBtn = $("nurseSaveBtn");
+const nursePrintBtn = $("nursePrintBtn");
+const nurseClearBtn = $("nurseClearBtn");
+const nurseTableWrap = $("nurseTableWrap");
+const nursePrintTableWrap = $("nursePrintTableWrap");
+const nursePaperMeta = $("nursePaperMeta");
+
+let nurseLog = {
+  unitName: "",
+  month: "", // YYYY-MM
+  rows: []   // array of day rows
+};
+
+// Mirrors your paper columns (digitized)
+const NURSE_COLS = [
+  { key:"day", label:"Day" },
+  { key:"lockNo", label:"Cart Lock #" },
+  { key:"sealed", label:"Cart Sealed" },
+  { key:"plugged", label:"Cart Plugged" },
+  { key:"defib", label:"Defib Test" },
+  { key:"supplyExpPresent", label:"Supplies Exp Date Present" },
+  { key:"medExpPresent", label:"Med Drawer Exp Date Present" },
+  { key:"contents", label:"Contents Listed" },
+  { key:"suction", label:"Suction OK" },
+  { key:"o2", label:"O₂ Green Zone" },
+  { key:"signature", label:"Signature" }
+];
+
+function todayDayOfMonth() {
+  return String(new Date().getDate());
+}
+
+function newNurseRow(day) {
+  return {
+    day: day || todayDayOfMonth(),
+    lockNo: "",
+    sealed: false,
+    plugged: false,
+    defib: false,
+    supplyExpPresent: false,
+    medExpPresent: false,
+    contents: false,
+    suction: false,
+    o2: false,
+    signature: ""
+  };
+}
+
+function saveNurseToLocal() {
+  nurseLog.unitName = nurseUnitName.value || "";
+  nurseLog.month = nurseMonth.value || "";
+  try { localStorage.setItem(LOCAL_KEY_NURSE, JSON.stringify(nurseLog)); } catch {}
+  nursePaperMeta.textContent = `Saved • ${nurseLog.rows.length} row(s)`;
+}
+
+function loadNurseFromLocal() {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY_NURSE);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.rows)) return false;
+    nurseLog = parsed;
+    return true;
+  } catch { return false; }
+}
+
+function renderNurseTable(targetEl, rows, isPrint=false) {
+  const th = NURSE_COLS.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const body = rows.map((r, idx) => {
+    const tds = NURSE_COLS.map(col => {
+      if (col.key === "day") {
+        return isPrint
+          ? `<td>${escapeHtml(r.day)}</td>`
+          : `<td><input class="paperInput" data-i="${idx}" data-k="day" value="${escapeHtml(r.day)}" /></td>`;
+      }
+      if (col.key === "lockNo" || col.key === "signature") {
+        return isPrint
+          ? `<td>${escapeHtml(r[col.key] || "")}</td>`
+          : `<td><input class="paperInput" data-i="${idx}" data-k="${col.key}" value="${escapeHtml(r[col.key] || "")}" /></td>`;
+      }
+
+      // checkboxes
+      return isPrint
+        ? `<td>${r[col.key] ? "Y" : ""}</td>`
+        : `<td><input class="paperChk" type="checkbox" data-i="${idx}" data-k="${col.key}" ${r[col.key] ? "checked" : ""} /></td>`;
+    }).join("");
+
+    return `<tr>${tds}</tr>`;
+  }).join("");
+
+  const table = `
+    <table class="paperTable">
+      <thead><tr>${th}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  `;
+
+  targetEl.innerHTML = table;
+
+  if (isPrint) return;
+
+  // wire inputs
+  targetEl.querySelectorAll("input.paperInput").forEach(inp => {
+    inp.addEventListener("input", () => {
+      const i = Number(inp.getAttribute("data-i"));
+      const k = inp.getAttribute("data-k");
+      nurseLog.rows[i][k] = inp.value;
+      saveNurseToLocal();
+    });
+  });
+
+  targetEl.querySelectorAll("input.paperChk").forEach(chk => {
+    chk.addEventListener("change", () => {
+      const i = Number(chk.getAttribute("data-i"));
+      const k = chk.getAttribute("data-k");
+      nurseLog.rows[i][k] = chk.checked;
+      saveNurseToLocal();
+    });
+  });
+}
+
+function renderNurseAll() {
+  nurseUnitName.value = nurseLog.unitName || "";
+  nurseMonth.value = nurseLog.month || "";
+
+  renderNurseTable(nurseTableWrap, nurseLog.rows, false);
+}
+
+nurseAddRowBtn.addEventListener("click", () => {
+  nurseLog.rows.unshift(newNurseRow(todayDayOfMonth())); // newest on top
+  saveNurseToLocal();
+  renderNurseAll();
+});
+
+nurseSaveBtn.addEventListener("click", () => {
+  saveNurseToLocal();
+  alert("Nursing log saved on this device.");
+});
+
+nurseClearBtn.addEventListener("click", () => {
+  if (!confirm("Clear nursing log for this month?")) return;
+  nurseLog.rows = [];
+  saveNurseToLocal();
+  renderNurseAll();
+});
+
+nursePrintBtn.addEventListener("click", () => {
+  $("nursePrintUnit").textContent = nurseUnitName.value || "—";
+  $("nursePrintMonth").textContent = nurseMonth.value || "—";
+  renderNurseTable(nursePrintTableWrap, nurseLog.rows, true);
+
+  // show print block (CSS print handles it)
+  window.print();
+});
 
 /* ---------------------------
    Utilities
@@ -512,82 +704,29 @@ function escapeHtml(str) {
 }
 
 /* ---------------------------
-   Render everything
---------------------------- */
-function renderAll() {
-  renderDepartmentOptions();
-  renderRoundMeta();
-  renderCartCards();
-  renderNursingLog();
-}
-
-/* ---------------------------
-   Event wiring
---------------------------- */
-cartTypeTabs.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-type]");
-  if (!btn) return;
-
-  round.cartType = btn.getAttribute("data-type");
-
-  document.querySelectorAll("#cartTypeTabs .tab").forEach(t => t.classList.remove("active"));
-  btn.classList.add("active");
-
-  renderDepartmentOptions();
-  saveToLocal();
-  renderAll();
-});
-
-departmentSelect.addEventListener("change", () => {
-  round.department = departmentSelect.value;
-  saveToLocal();
-  renderAll();
-});
-
-addCartBtn.addEventListener("click", () => addCart(cartNumberInput.value));
-cartNumberInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") addCart(cartNumberInput.value);
-});
-
-clearRoundBtn.addEventListener("click", () => {
-  if (!confirm("Clear this round (remove all carts from screen)?")) return;
-  round.carts = [];
-  saveToLocal();
-  renderAll();
-});
-
-saveRoundBtn.addEventListener("click", () => {
-  saveToLocal();
-  alert("Round saved on this device.");
-});
-
-exportJsonBtn.addEventListener("click", () => {
-  downloadJSON(round, `verifi_${round.cartType.replaceAll(" ", "_")}_export.json`);
-});
-
-showAllToggle.addEventListener("change", () => {
-  showAll = showAllToggle.checked;
-  renderNursingLog();
-});
-
-printPdfBtn.addEventListener("click", () => {
-  renderNursingLogForPrint();
-  window.print();
-});
-
-/* ---------------------------
    Init
 --------------------------- */
 (function init() {
-  loadFromLocal();
-
+  // tech
+  loadTechFromLocal();
   renderDepartmentOptions();
   if (!round.department) round.department = (DEPARTMENTS[round.cartType] || [])[0] || "";
-
   document.querySelectorAll("#cartTypeTabs .tab").forEach(t => t.classList.remove("active"));
   document.querySelector(`#cartTypeTabs .tab[data-type="${CSS.escape(round.cartType)}"]`)?.classList.add("active");
-
   departmentSelect.value = round.department;
+  renderTechAll();
 
-  renderAll();
+  // nursing
+  loadNurseFromLocal();
+
+  // default month to current if empty
+  if (!nurseLog.month) {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    nurseLog.month = `${now.getFullYear()}-${mm}`;
+  }
+  renderNurseAll();
+
+  // start on tech
+  showScreen("tech");
 })();
