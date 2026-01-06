@@ -16,8 +16,6 @@
       </div>
 
       <div class="topbar__actions">
-        <button id="lockBtn" class="pill pill--dark"><span class="icon">🔒</span> Lock</button>
-
         <label class="pill pill--toggle noPrint">
           <input id="readyToggle" type="checkbox" />
           <span class="toggleTrack"></span>
@@ -46,9 +44,7 @@
 
         <div>
           <div class="fieldLabel">Department / Area</div>
-          <select id="departmentSelect" class="select">
-            <!-- options injected by JS -->
-          </select>
+          <select id="departmentSelect" class="select"></select>
         </div>
       </div>
 
@@ -57,14 +53,14 @@
         <button id="addCartBtn" class="pill pill--outline">Add Cart</button>
       </div>
 
-      <div class="toolbarRow">
+      <div class="toolbarRow noPrint">
         <button id="clearRoundBtn" class="pill pill--outline">Clear Round</button>
         <button id="saveRoundBtn" class="pill pill--outline">Save Round</button>
         <button id="exportJsonBtn" class="pill pill--outline">Export JSON</button>
       </div>
 
       <div class="miniHint">
-        Tip: Add carts as you walk. Every cart keeps the same sticker fields. Issues stay included & flagged.
+        Add carts as you walk. Issues stay included & flagged. All dates use calendar pickers.
       </div>
     </section>
 
@@ -78,15 +74,15 @@
         <div class="panelSub" id="nursingMeta">Needs attention only</div>
       </div>
 
-      <div class="nurseControls">
+      <div class="nurseControls noPrint">
         <div class="nurseRow">
-          <label class="pill pill--toggle noPrint" style="gap:8px;">
+          <label class="pill pill--toggle" style="gap:8px;">
             <input id="showAllToggle" type="checkbox" />
             <span class="toggleTrack"></span>
             <span class="toggleLabel">Show All</span>
           </label>
 
-          <button id="printPdfBtn" class="pill pill--outline noPrint">Print / Save PDF</button>
+          <button id="printPdfBtn" class="pill pill--outline">Print / Save PDF</button>
         </div>
       </div>
 
@@ -104,19 +100,6 @@
       </section>
     </section>
 
-  </div>
-
-  <!-- PIN Modal -->
-  <div class="modal hidden" id="pinModal">
-    <div class="modalCard">
-      <div class="modalTitle">Enter PIN</div>
-      <input id="pinInput" class="pinInput" inputmode="numeric" placeholder="••••" maxlength="6" />
-      <div class="modalActions">
-        <button id="pinCancel" class="btn btn--ghost">Cancel</button>
-        <button id="pinUnlock" class="btn btn--primary">Unlock</button>
-      </div>
-      <div class="modalHint">Pilot default PIN is set in app.js</div>
-    </div>
   </div>
 
   <script src="app.js"></script>
